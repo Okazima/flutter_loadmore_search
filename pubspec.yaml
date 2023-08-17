@@ -1,0 +1,33 @@
+name: flutter_loadmore_search
+description: A new Flutter project.
+publish_to: 'none' 
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.2
+  freezed_annotation: 
+  json_serializable: 
+  http: 
+  flutter_riverpod: 
+  flutter_hooks:  
+  riverpod_annotation: 
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner:
+  flutter_lints: ^2.0.0
+  freezed:
+  riverpod_generator:
+
+flutter:
+
+  uses-material-design: true
+
