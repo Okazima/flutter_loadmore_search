@@ -1,0 +1,86 @@
+name: manual version update
+run-name: ${{ github.workflow }} 【${{ github.event.inputs.update_type }}】
+
+on:
+  workflow_dispatch:
+    inputs:
+      update_type:
+        description: "バージョンアップの種類を選択"
+        type: choice
+        required: true
+        options:
+          - patch
+          - minor
+          - major
+          - custom
+        default: "patch"
+      custom_version:
+        description: "修正用（「custom」選択時のみ入力してください。MAJOR.MINOR.PATCH形式で指定）"
+        required: false
+        type: string
+
+jobs:
+  update_version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+      - name: Validate Inputs
+        run: |
+          if [ "${{ github.event.inputs.update_type }}" == "custom" ]; then
+            if [ -z "${{ github.event.inputs.custom_version }}" ]; then
+              echo "::error::カスタムバージョンが選択されましたが、バージョンが指定されていません。"
+              exit 1
+            fi
+          
+            # セマンティックバージョニングのチェック（MAJOR.MINOR.PATCH形式）
+            if ! [[ "${{ github.event.inputs.custom_version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::カスタムバージョンはセマンティックバージョニング（MAJOR.MINOR.PATCH形式）に従ってください。例: 1.2.3"
+              exit 1
+            fi
+          fi
+
+      - name: Update Version
+        id: version
+        run: |
+          # 現在のバージョンを取得
+          FULL_VERSION=$(grep -m 1 "version: " pubspec.yaml | sed 's/version: //')
+          CURRENT_VERSION=$(echo $FULL_VERSION | sed 's/+.*//')
+          BUILD_NUMBER=$(echo $FULL_VERSION | sed 's/.*+//')
+          echo "現在のアプリバージョン: $CURRENT_VERSION"
+          echo "Build number: $BUILD_NUMBER"
+
+          # バージョン部分を分割
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+          # 選択されたタイプに基づいて新しいバージョンを計算
+          if [ "${{ github.event.inputs.update_type }}" == "major" ]; then
+            NEW_VERSION="$((MAJOR + 1)).0.0+$BUILD_NUMBER"
+          elif [ "${{ github.event.inputs.update_type }}" == "minor" ]; then
+            NEW_VERSION="$MAJOR.$((MINOR + 1)).0+$BUILD_NUMBER"
+          elif [ "${{ github.event.inputs.update_type }}" == "custom" ]; then
+            NEW_VERSION="${{ github.event.inputs.custom_version }}+$BUILD_NUMBER"
+          else
+            NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))+$BUILD_NUMBER"
+          fi
+
+          echo "New version: $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+          sed -i "s/^version: .*/version: $NEW_VERSION/" pubspec.yaml
+
+      - name: Commit and Push Changes
+        run: |
+          git add pubspec.yaml
+          git commit -m "Bump version to ${{ steps.version.outputs.new_version }}"
+          git push origin HEAD:${{ github.ref }}
