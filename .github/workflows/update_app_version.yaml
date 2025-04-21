@@ -1,5 +1,5 @@
 name: manual version update
-run-name: ${{ github.workflow }} 【${{ github.event.inputs.update_type }}】
+run-name: ${{ github.workflow }} 【${{ github.event.inputs.update_type }}】 update to (${{ steps.version.outputs.new_version }})
 
 on:
   workflow_dispatch:
